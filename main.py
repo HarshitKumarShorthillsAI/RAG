@@ -74,8 +74,17 @@ def main():
             vectorizer = MedlinePlusVectorizer()
             
             with st.spinner("Querying the database and generating response..."):
-                # Hardcode n_results to 5 (or any other value you prefer)
-                vectorizer.query_with_mistral(query, n_results=5)
+                # Get the answer and context
+                answer, context = vectorizer.query_with_mistral(query, n_results=5)
+                
+                # Display the answer
+                st.subheader("Generated Answer using Mistral Model")
+                st.write(answer)
+                
+                # Display the supporting context
+                st.subheader("Supporting Context")
+                st.write(context)
+                
             st.success("Query completed!")
 
 if __name__ == "__main__":

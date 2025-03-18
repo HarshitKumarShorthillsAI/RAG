@@ -14,6 +14,9 @@ The project involves the following key steps:
 5. **Streamlit UI Integration**: Building an interactive user interface (UI) using Streamlit to test and visualize the pipeline.
 
 ---
+## Architecture 
+
+![alt text](<ScreenShot/Screenshot from 2025-03-18 12-57-41.png>)
 
 ## Technologies and Libraries Used
 
@@ -65,7 +68,7 @@ The project involves the following key steps:
 - Performed data validation to avoid redundant or low-quality Q&A pairs.
 
 ### Step 4: Storing Processed Data in CSV
-- Stored the structured Q&A dataset in a CSV file named `medline_qa_dataset.csv`.
+- Stored the structured Q&A dataset in a CSV file.
 - CSV Columns:
   - **Question**: AI-generated medical question based on Medline text.
   - **Answer**: Mistral AI-generated response for the given question.
@@ -75,6 +78,7 @@ The project involves the following key steps:
 - Developed an interactive UI using Streamlit to allow users to input medical queries and receive AI-generated answers.
 - Displayed the context and source of the answers for transparency.
 - Enabled users to test the pipeline and visualize the results in real-time.
+- Stored and Saved the timestamp, Question and Answer in json form in query_logs.json 
 
 ### Step 6: Evaluation of LLM
 - Evaluate the performance of the LLM using metrics such as Exact Match, Cosine Similarity, ROUGE Score, BERT Similarity, BERTScore, BERTRecall ,BERT Precison , Precision Score, and a weighted Final Score.
@@ -85,17 +89,26 @@ The project involves the following key steps:
 
 ## Screenshot
 
-
 - Medline Website <br>
+
 ![alt text](<ScreenShot/Screenshot from 2025-03-17 17-04-38.png>)
 
 - UI for searching the question <br>
 ![alt text](<ScreenShot/Screenshot from 2025-03-17 16-56-33.png>)
 
 - Evaluation ScreenShot <br>
+
 ![alt text](ScreenShot/image.png)
-
-
+```
+File Structure
+├── main.py              # Core program interface
+├── WebScraper.py           # Web scraping functionality
+├── Vectorizer.py          # Text processing and embedding generation
+├── script.py             # Query processing and response generation
+├── cleaned.py             # Clean the File helper function
+├── Evaluation.py        # Handles metric calculations and scoring
+├── requirements.txt     # Dependencies list
+ ```
 
 ## How to Use
 
@@ -103,3 +116,15 @@ The project involves the following key steps:
    ```bash
    git clone https://github.com/HarshitKumarShorthillsAI/RAG.git
    cd RAG
+   ```
+
+**Virtual Enviroment Setup**:
+   ```bash
+    Python3 -m venv venv
+    source venv/bin/activate   '''On Windows, use `venv\Scripts\activate'''
+    ```
+```
+
+## Documentation  
+For detailed documentation, follow the link:  
+[Click here to access the documentation](https://shorthillstech.sharepoint.com/:fl:/g/contentstorage/x8FNO-xtskuCRX2_fMTHLXD-i7TbKbJBix6sdFJe1Ww/Ecs1m74fAkhAnrXWw_Y7hRsBlW7VbSRqJlt31ofeLFjIEQ?e=R13uYf&nav=cz0lMkZjb250ZW50c3RvcmFnZSUyRng4Rk5PLXh0c2t1Q1JYMl9mTVRITFhELWk3VGJLYkpCaXg2c2RGSmUxV3cmZD1iJTIxN0VvZ3lqNnY2VTZGNDIxWVk4azNfM2tyU0hGdEh6VlByZTU3UUVsdE1XemVad3JBRlVEVlNabWdRVFBmb2tCayZmPTAxNVEzNUNBT0xHV04zNEhZQ0pCQUo1Tk9XWVAzRFhCSTMmYz0lMkYmYT1Mb29wQXBwJnA9JTQwZmx1aWR4JTJGbG9vcC1wYWdlLWNvbnRhaW5lciZ4PSU3QiUyMnclMjIlM0ElMjJUMFJUVUh4emFHOXlkR2hwYkd4emRHVmphQzV6YUdGeVpYQnZhVzUwTG1OdmJYeGlJVGRGYjJkNWFqWjJObFUyUmpReU1WbFpPR3N6WHpOcmNsTklSblJJZWxaUWNtVTFOMUZGYkhSTlYzcGxXbmR5UVVaVlJGWlRXbTFuVVZSUVptOXJRbXQ4TURFMVVUTTFRMEZQUTFOTU5FODBTalJTVEU1SU0wRXlVbGxaVEROSFYwOUhTUSUzRCUzRCUyMiUyQyUyMmklMjIlM0ElMjI0YzZlYWRlOC1mMjcyLTQ1ZmQtYTEyNC05NjQ0OTk5MWI4YmIlMjIlN0Q%3D)  

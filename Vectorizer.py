@@ -18,6 +18,8 @@ from dotenv import load_dotenv
 import os
 import streamlit as st
 import torch
+import json
+
 load_dotenv()
 
 class MedlinePlusVectorizer:
@@ -207,7 +209,7 @@ class MedlinePlusVectorizer:
         except Exception as e:
             print(f"An error occurred during processing: {e}")
     
-    def query_with_mistral(self, query_text: str, n_results: int = 5) -> None:
+    def query_with_mistral(self, query_text: str, n_results: int = 5) -> Tuple[str, str]:
         """Query the ChromaDB vector database and generate an answer using Mistral."""
         try:
             # Debug: Print API key
@@ -235,15 +237,15 @@ class MedlinePlusVectorizer:
             # Generate an answer using Mistral
             answer = self.generate_mistral_response(query_text, context, mistral_llm)
             
-            # Display the results in the Streamlit UI
-            st.subheader("Generated Answer using Mistral Model")
-            st.write(answer)
+            # Log the query and answer
+            self._log_query(query_text, answer)
             
-            st.subheader("Supporting Context")
-            st.write(context[:1000] + "...")  # Show first 1000 chars of context
-            
+            return answer, context  # Return both answer and context
+                
         except Exception as e:
             st.error(f"Error querying the database or generating response: {e}")
+            return f"Error: {e}", "" 
+    
     def initialize_mistral_model(self):
         """Initializes the Mistral model using LangChain."""
         # Prompt the user for the Mistral API key if not already set
@@ -263,7 +265,7 @@ class MedlinePlusVectorizer:
         )
         return llm
     
-    def generate_mistral_response(self,query, context, mistral_llm):
+    def generate_mistral_response(self, query: str, context: str, mistral_llm) -> str:
         """Generates an answer using Mistral."""
         prompt = (
             "You are a medical assistant. Answer the user's question using ONLY the provided context. "
@@ -274,3 +276,24 @@ class MedlinePlusVectorizer:
     
         response = mistral_llm.invoke(prompt)
         return response.content
+    
+    def _log_query(self, query: str, answer: str) -> None:
+        """Logs the query and answer into a JSON file."""
+        log_entry = {
+            "timestamp": datetime.now().isoformat(),
+            "question": query,
+            "answer": answer
+        }
+        
+        # Append the log entry to a JSON file
+        log_file = "query_logs.json"
+        try:
+            with open(log_file, "r") as f:
+                logs = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            logs = []
+        
+        logs.append(log_entry)
+        
+        with open(log_file, "w") as f:
+            json.dump(logs, f, indent=4)
