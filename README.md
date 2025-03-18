@@ -123,7 +123,12 @@ File Structure
     Python3 -m venv venv
     source venv/bin/activate   '''On Windows, use `venv\Scripts\activate'''
     ```
+
 ```
+**Running the Program**:
+   ```bash
+    streamlit run main.py
+   ```
 
 ## Documentation  
 For detailed documentation, follow the link:  
