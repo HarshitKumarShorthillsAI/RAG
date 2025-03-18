@@ -212,7 +212,7 @@ class MedlinePlusVectorizer:
         try:
             # Debug: Print API key
             load_dotenv()
-            st.write("Mistral API Key:", os.getenv("MISTRAL_API_KEY"))
+            # st.write("Mistral API Key:", os.getenv("MISTRAL_API_KEY"))
 
             # Get the ChromaDB collection
             collection = self.chroma_client.get_collection(

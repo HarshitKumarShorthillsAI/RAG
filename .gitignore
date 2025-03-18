@@ -4,3 +4,14 @@ medlineplus_diseases
 medlineplus_combined.txt
 chroma_db
 .env
+refined_questions_with_answers.csv
+refined_questions_with_answers.ods
+cleaned_file.ods
+main2.py
+main3.py
+gemini.py
+qa_interactions.log
+refined_questions_with_context.ods
+evaluation_results_100.csv
+evaluation_results.ods
+cleaned_file_with_context.ods
