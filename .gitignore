@@ -15,3 +15,5 @@ refined_questions_with_context.ods
 evaluation_results_100.csv
 evaluation_results.ods
 cleaned_file_with_context.ods
+test_api_key
+app.log
