@@ -24,7 +24,8 @@ class MedlinePlusVectorizer:
         input_dir="medlineplus_diseases", 
         chunk_size=1000, 
         chunk_overlap=200,
-        collection_name="medlineplus_collection"
+        collection_name="medlineplus_collection",
+        initialize_embeddings=True  # Add flag to control initialization
     ):
         """
         Initialize the vectorizer.
@@ -34,6 +35,7 @@ class MedlinePlusVectorizer:
             chunk_size: Size of text chunks in characters
             chunk_overlap: Overlap between consecutive chunks in characters
             collection_name: Name for the ChromaDB collection
+            initialize_embeddings: Whether to initialize embeddings (can be disabled for testing)
         """
         self.input_dir = input_dir
         self.chunk_size = chunk_size
@@ -44,10 +46,11 @@ class MedlinePlusVectorizer:
         self.chroma_client = chromadb.PersistentClient(path="./chroma_db")
         
         # Use HuggingFaceEmbeddings for LangChain compatibility
-        self.embeddings = HuggingFaceEmbeddings(
-            model_name="sentence-transformers/all-MiniLM-L6-v2",
-            model_kwargs={'device': 'cpu'}
-        )
+        if initialize_embeddings:
+            self.embeddings = HuggingFaceEmbeddings(
+                model_name="sentence-transformers/all-MiniLM-L6-v2",
+                model_kwargs={'device': 'cpu'}
+            )
         
         # Initialize LangChain text splitter
         self.text_splitter = RecursiveCharacterTextSplitter(
@@ -212,7 +215,7 @@ class MedlinePlusVectorizer:
     
     def initialize_mistral_model(self):
         """Initializes the Mistral model using LangChain."""
-        # Get the Mistral API key from environment variables
+        print("Calling os.getenv...")  # Debug statement
         mistral_api_key = os.getenv("MISTRAL_API_KEY")
         if not mistral_api_key:
             raise ValueError("Mistral API key is required. Please set the MISTRAL_API_KEY environment variable.")
@@ -225,7 +228,7 @@ class MedlinePlusVectorizer:
             api_key=mistral_api_key  # Pass the API key directly
         )
         return llm
-    
+        
     def _log_query(self, query: str, answer: str) -> None:
         """Logs the query and answer into a JSON file."""
         log_entry = {
@@ -237,12 +240,22 @@ class MedlinePlusVectorizer:
         # Append the log entry to a JSON file
         log_file = "query_logs.json"
         try:
-            with open(log_file, "r") as f:
-                logs = json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
-            logs = []
-        
-        logs.append(log_entry)
-        
-        with open(log_file, "w") as f:
-            json.dump(logs, f, indent=4)
+            # Try to read existing logs
+            if os.path.exists(log_file):
+                with open(log_file, "r") as f:
+                    try:
+                        logs = json.load(f)
+                    except json.JSONDecodeError:
+                        print("Warning: Log file is corrupted. Starting a new log.")
+                        logs = []
+            else:
+                logs = []
+            
+            # Append new log entry
+            logs.append(log_entry)
+            
+            # Write back to the file
+            with open(log_file, "w") as f:
+                json.dump(logs, f, indent=4)
+        except Exception as e:
+            print(f"Error logging query: {e}")

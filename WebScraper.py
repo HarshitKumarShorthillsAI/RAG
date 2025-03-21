@@ -161,33 +161,29 @@ class MedlinePlusScraper:
         Returns:
             List of article URLs
         """
-        try:
-            # Validate input
-            if not letter or len(letter.strip()) != 1 or not letter.strip().isalpha():
-                raise ValueError("Please provide a single alphabetical character")
-                
-            letter = letter.strip().upper()
-            url = f"{self.BASE_URL}encyclopedia_{letter}.htm"
-            html = self.retrieve_webpage(url)
+        # Validate input
+        if not letter or len(letter.strip()) != 1 or not letter.strip().isalpha():
+            raise ValueError("Please provide a single alphabetical character")
             
-            if not html:
-                return []
-            
-            soup = BeautifulSoup(html, "html.parser")
-            article_links = []
-            
-            # Find all article links
-            for li in soup.select("#mplus-content li"):
-                if not li.get("class"):  # Ensure <li> has no class
-                    a_tag = li.find("a", href=True)
-                    if a_tag and a_tag["href"].startswith("article/"):
-                        article_links.append(self.BASE_URL + a_tag["href"])
-            
-            return article_links
-        except Exception as e:
-            print(f"Error finding articles: {e}")
+        letter = letter.strip().upper()
+        url = f"{self.BASE_URL}encyclopedia_{letter}.htm"
+        html = self.retrieve_webpage(url)
+        
+        if not html:
             return []
-    
+        
+        soup = BeautifulSoup(html, "html.parser")
+        article_links = []
+        
+        # Find all article links
+        for li in soup.select("#mplus-content li"):
+            if not li.get("class"):  # Ensure <li> has no class
+                a_tag = li.find("a", href=True)
+                if a_tag and a_tag["href"].startswith("article/"):
+                    article_links.append(self.BASE_URL + a_tag["href"])
+        
+        return article_links
+        
     def scrape_and_save_articles(self, letter: str) -> None:
         """
         Main function to scrape articles for a given letter and save to files.

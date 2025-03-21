@@ -235,8 +235,8 @@ def main():
     # Directory containing the files
     input_directory = "medlineplus_diseases"  # Replace with your directory path
     # Output CSV files
-    output_csv = "refined_questions_with_answers.csv"
-    context_csv = "refined_questions_with_context.csv"
+    output_csv = "refined_questions_with_answers2222.csv"
+    context_csv = "refined_questions_with_context2222.csv"
     
     # Display menu options
     print("Choose an option:")
