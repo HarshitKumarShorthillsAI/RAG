@@ -17,3 +17,9 @@ evaluation_results.ods
 cleaned_file_with_context.ods
 test_api_key
 app.log
+test_input
+test_medlineplus_output
+conftest.py
+ecel.py
+maunaltestingexcel.py
+run_test_with_excel_report.py
