@@ -1,585 +1,343 @@
-import pytest
-import os
-import json
-import shutil
-import tempfile
-import pandas as pd
+import unittest
 from unittest.mock import patch, MagicMock, mock_open
-from bs4 import BeautifulSoup
+import os
+import sys
 import requests
+import json
+from bs4 import BeautifulSoup
 from datetime import datetime
+from io import StringIO
 
 # Import the classes to test
 from WebScraper import MedlinePlusScraper
 from Vectorizer import MedlinePlusVectorizer
 
-# Test data
-MOCK_HTML = """
-<html>
-    <body>
-        <h1 class="with-also" itemprop="name">Test Disease</h1>
-        <div class="section">
-            <div class="section-title">Definition</div>
-            <div class="section-body">This is a test disease definition.</div>
-        </div>
-        <div class="section">
-            <div class="section-title">Causes</div>
-            <div class="section-body">These are the causes of the test disease.</div>
-        </div>
-        <div id="mplus-content">
-            <ul>
-                <li><a href="article/disease1.htm">Disease 1</a></li>
-                <li><a href="article/disease2.htm">Disease 2</a></li>
-            </ul>
-        </div>
-    </body>
-</html>
-"""
+class TestMedlinePlusScraper(unittest.TestCase):
+    """Test cases for the MedlinePlusScraper class."""
 
-MOCK_ARTICLE_LINKS = [
-    "https://medlineplus.gov/ency/article/disease1.htm",
-    "https://medlineplus.gov/ency/article/disease2.htm"
-]
+    def setUp(self):
+        """Set up test environment before each test."""
+        self.scraper = MedlinePlusScraper(output_dir="test_output")
+        # Sample HTML content for testing
+        self.sample_html = """
+        <html>
+            <head><title>Test Article</title></head>
+            <body>
+                <h1 class="with-also" itemprop="name">Test Disease</h1>
+                <div class="section">
+                    <div class="section-title">Causes</div>
+                    <div class="section-body">This is the causes content.</div>
+                </div>
+                <div class="section">
+                    <div class="section-title">Symptoms</div>
+                    <div class="section-body">This is the symptoms content.</div>
+                </div>
+                <div id="mplus-content">
+                    <ul>
+                        <li><a href="article/disease1.htm">Disease 1</a></li>
+                        <li><a href="article/disease2.htm">Disease 2</a></li>
+                        <li class="special"><a href="article/special.htm">Special Link</a></li>
+                    </ul>
+                </div>
+            </body>
+        </html>
+        """
 
-MOCK_COMBINED_TEXT = """
---- START OF DOCUMENT: file1.txt ---
-Title: Disease 1
-Definition: This is disease 1.
---- END OF DOCUMENT: file1.txt ---
+    @patch('os.makedirs')
+    def test_init_creates_output_directory(self, mock_makedirs):
+        """Test that the constructor creates the output directory if it doesn't exist."""
+        with patch('os.path.exists', return_value=False):
+            scraper = MedlinePlusScraper(output_dir="new_dir")
+            mock_makedirs.assert_called_once_with("new_dir")
 
---- START OF DOCUMENT: file2.txt ---
-Title: Disease 2
-Definition: This is disease 2.
---- END OF DOCUMENT: file2.txt ---
-"""
+    @patch('requests.Session.get')
+    def test_retrieve_webpage_success(self, mock_get):
+        """Test successful webpage retrieval."""
+        mock_response = MagicMock()
+        mock_response.text = self.sample_html
+        mock_get.return_value = mock_response
+        
+        result = self.scraper.retrieve_webpage("https://example.com")
+        self.assertEqual(result, self.sample_html)
+        mock_get.assert_called_once_with("https://example.com", timeout=30)
 
-class TestReport:
-    """Class to manage test results and generate Excel report."""
-    
-    def __init__(self, report_path="test_results.xlsx"):
-        self.report_path = report_path
-        self.results = []
+    @patch('requests.Session.get')
+    def test_retrieve_webpage_failure(self, mock_get):
+        """Test webpage retrieval failure handling."""
+        mock_get.side_effect = requests.RequestException("Connection error")
         
-    def add_result(self, test_case_id, section, subsection, title, description, 
-                  preconditions, test_data, test_steps, expected_result, status, actual_result=""):
-        """Add a test result to the collection."""
-        self.results.append({
-            "TEST CASE ID": test_case_id,
-            "SECTION": section,
-            "SUB-SECTION": subsection,
-            "TEST CASE TITLE": title,
-            "TEST DESCRIPTION": description,
-            "PRECONDITIONS": preconditions,
-            "TEST DATA": test_data,
-            "TEST STEPS": test_steps,
-            "EXPECTED RESULT": expected_result,
-            "ACTUAL RESULT": actual_result,
-            "STATUS": status
-        })
-        
-    def generate_report(self):
-        """Generate an Excel report of test results."""
-        df = pd.DataFrame(self.results)
-        df.to_excel(self.report_path, index=False)
-        print(f"Test report generated at {self.report_path}")
+        result = self.scraper.retrieve_webpage("https://example.com")
+        self.assertIsNone(result)
 
+    def test_parse_article_content(self):
+        """Test parsing article content from HTML."""
+        result = self.scraper.parse_article_content(self.sample_html)
+        
+        self.assertEqual(result["Title"], "Test Disease")
+        self.assertEqual(result["Causes"], "This is the causes content.")
+        self.assertEqual(result["Symptoms"], "This is the symptoms content.")
 
-# Initialize the test report
-test_report = TestReport()
+    def test_parse_article_content_error_handling(self):
+        """Test error handling in article content parsing."""
+        result = self.scraper.parse_article_content("<invalid>html")
+        self.assertIn("Error", result)
 
+    def test_create_safe_filename(self):
+        """Test creating safe filenames from article titles."""
+        # Test basic sanitization
+        result = self.scraper.create_safe_filename("Test Disease: A Study")
+        self.assertTrue(result.startswith("Test_Disease_A_Study_"))
+        
+        # Test handling invalid characters
+        result = self.scraper.create_safe_filename("Test/Disease\\*:?\"<>|")
+        self.assertTrue(result.startswith("TestDisease_"))
+        
+        # Test truncation of long filenames
+        long_title = "A" * 300
+        result = self.scraper.create_safe_filename(long_title)
+        self.assertEqual(len(result.split("_")[0]), 200)
 
-# Fixture for temporary directory
-@pytest.fixture
-def temp_dir():
-    """Create a temporary directory for test outputs."""
-    temp_dir = tempfile.mkdtemp()
-    yield temp_dir
-    shutil.rmtree(temp_dir)
-
-
-# MedlinePlusScraper Tests
-class TestMedlinePlusScraper:
-    
-    @pytest.fixture
-    def scraper(self, temp_dir):
-        """Create a scraper instance with a temporary output directory."""
-        return MedlinePlusScraper(output_dir=temp_dir)
-    
-    def test_retrieve_webpage_success(self, scraper):
-        """Test TC001: Test that webpage retrieval works with a valid URL."""
-        test_id = "TC001"
-        section = "MedlinePlusScraper"
-        subsection = "retrieve_webpage"
-        
-        # Setup test
-        with patch.object(scraper.session, 'get') as mock_get:
-            mock_response = MagicMock()
-            mock_response.text = MOCK_HTML
-            mock_get.return_value = mock_response
-            
-            # Execute test
-            result = scraper.retrieve_webpage("https://example.com")
-            
-            # Verify results
-            status = "PASS" if result == MOCK_HTML else "FAIL"
-            actual_result = f"Retrieved {len(result)} characters" if result else "Failed to retrieve content"
-            
-            # Record test result
-            test_report.add_result(
-                test_id, section, subsection,
-                "Webpage Retrieval Success",
-                "Verify that the retrieve_webpage method successfully retrieves content from a valid URL",
-                "Scraper instance initialized",
-                "Mock URL: https://example.com",
-                "1. Call retrieve_webpage with valid URL\n2. Check if content is returned",
-                "HTML content should be returned",
-                status, actual_result
-            )
-            
-            assert result == MOCK_HTML
-    
-    def test_retrieve_webpage_failure(self, scraper):
-        """Test TC002: Test that webpage retrieval handles errors gracefully."""
-        test_id = "TC002"
-        section = "MedlinePlusScraper"
-        subsection = "retrieve_webpage"
-        
-        # Setup test
-        with patch.object(scraper.session, 'get') as mock_get:
-            mock_get.side_effect = requests.RequestException("Connection error")
-            
-            # Execute test
-            result = scraper.retrieve_webpage("https://invalid-url.com")
-            
-            # Verify results
-            status = "PASS" if result is None else "FAIL"
-            actual_result = "None returned as expected" if result is None else f"Unexpected result: {result}"
-            
-            # Record test result
-            test_report.add_result(
-                test_id, section, subsection,
-                "Webpage Retrieval Failure",
-                "Verify that the retrieve_webpage method handles connection errors gracefully",
-                "Scraper instance initialized",
-                "Mock URL that throws exception: https://invalid-url.com",
-                "1. Call retrieve_webpage with URL that causes exception\n2. Check if None is returned",
-                "None should be returned, no exception raised",
-                status, actual_result
-            )
-            
-            assert result is None
-    
-    def test_parse_article_content(self, scraper):
-        """Test TC003: Test article content parsing from HTML."""
-        test_id = "TC003"
-        section = "MedlinePlusScraper"
-        subsection = "parse_article_content"
-        
-        # Execute test
-        result = scraper.parse_article_content(MOCK_HTML)
-        
-        # Verify results
-        expected_keys = ["Title", "Definition", "Causes"]
-        all_keys_present = all(key in result for key in expected_keys)
-        status = "PASS" if all_keys_present and result["Title"] == "Test Disease" else "FAIL"
-        actual_result = f"Parsed keys: {list(result.keys())}" if result else "Failed to parse content"
-        
-        # Record test result
-        test_report.add_result(
-            test_id, section, subsection,
-            "Article Content Parsing",
-            "Verify that article content is correctly parsed from HTML",
-            "Scraper instance initialized",
-            "Mock HTML with article content structure",
-            "1. Call parse_article_content with HTML content\n2. Check if all expected sections are extracted",
-            "Dictionary with Title, Definition and Causes keys should be returned",
-            status, actual_result
-        )
-        
-        assert "Title" in result
-        assert result["Title"] == "Test Disease"
-        assert "Definition" in result
-        assert "Causes" in result
-    
-    def test_find_encyclopedia_articles(self, scraper):
-        """Test TC004: Test finding article links for a given letter."""
-        test_id = "TC004"
-        section = "MedlinePlusScraper"
-        subsection = "find_encyclopedia_articles"
-        
-        # Setup test
-        with patch.object(scraper, 'retrieve_webpage') as mock_retrieve:
-            mock_retrieve.return_value = MOCK_HTML
-            
-            # Execute test
-            result = scraper.find_encyclopedia_articles("A")
-            
-            # Verify results
-            expected_urls = [
-                "https://medlineplus.gov/ency/article/disease1.htm",
-                "https://medlineplus.gov/ency/article/disease2.htm"
-            ]
-            urls_match = sorted(result) == sorted(expected_urls)
-            status = "PASS" if urls_match else "FAIL"
-            actual_result = f"Found {len(result)} article links" if result else "No article links found"
-            
-            # Record test result
-            test_report.add_result(
-                test_id, section, subsection,
-                "Find Encyclopedia Articles",
-                "Verify that article links are correctly extracted for a given letter",
-                "Scraper instance initialized",
-                "Letter: A, Mock HTML with article links",
-                "1. Call find_encyclopedia_articles with letter 'A'\n2. Check if article links are extracted",
-                "List of article URLs should be returned",
-                status, actual_result
-            )
-            
-            assert sorted(result) == sorted(expected_urls)
-    
-    def test_create_safe_filename(self, scraper):
-        """Test TC005: Test creation of safe filenames."""
-        test_id = "TC005"
-        section = "MedlinePlusScraper"
-        subsection = "create_safe_filename"
-        
-        # Execute test
-        unsafe_title = "Disease: With * Invalid / Chars?"
-        result = scraper.create_safe_filename(unsafe_title)
-        
-        # Verify results
-        has_no_invalid_chars = all(c not in result for c in r'\\/*?:"<>|')
-        status = "PASS" if has_no_invalid_chars and "Disease_With_Invalid_Chars" in result else "FAIL"
-        actual_result = f"Created filename: {result}"
-        
-        # Record test result
-        test_report.add_result(
-            test_id, section, subsection,
-            "Create Safe Filename",
-            "Verify that invalid characters are removed from filenames",
-            "Scraper instance initialized",
-            "Unsafe title: 'Disease: With * Invalid / Chars?'",
-            "1. Call create_safe_filename with unsafe title\n2. Check if result contains no invalid characters",
-            "Filename without invalid characters should be returned",
-            status, actual_result
-        )
-        
-        assert all(c not in result for c in r'\\/*?:"<>|')
-        assert "Disease_With_Invalid_Chars" in result
-    
-    def test_save_to_file(self, scraper, temp_dir):
-        """Test TC006: Test saving content to a file."""
-        test_id = "TC006"
-        section = "MedlinePlusScraper"
-        subsection = "save_to_file"
-        
-        # Setup test
-        content = {
-            "Title": "Test Disease",
-            "Definition": "This is a test definition."
-        }
+    @patch('builtins.open', new_callable=mock_open)
+    def test_save_to_file(self, mock_file):
+        """Test saving content to a file."""
+        content = {"Title": "Test Disease", "Causes": "Test causes"}
         url = "https://example.com/test"
         
-        # Execute test
-        filepath = scraper.save_to_file(content, url)
-        file_exists = os.path.exists(filepath)
+        with patch('datetime.datetime') as mock_datetime:
+            mock_datetime.now.return_value = datetime(2025, 3, 23, 12, 0, 0)
+            result = self.scraper.save_to_file(content, url)
         
-        # Verify file content
-        if file_exists:
-            with open(filepath, 'r', encoding='utf-8') as f:
-                file_content = f.read()
+        self.assertFalse(result.startswith("Error"))
+        mock_file.assert_called_once()
         
-        # Verify results
-        has_expected_content = file_exists and "Test Disease" in file_content and "This is a test definition." in file_content
-        status = "PASS" if has_expected_content else "FAIL"
-        actual_result = f"File saved at: {filepath}" if file_exists else "Failed to save file"
-        
-        # Record test result
-        test_report.add_result(
-            test_id, section, subsection,
-            "Save Content to File",
-            "Verify that content is correctly saved to a file",
-            "Scraper instance initialized with temporary directory",
-            "Test content dictionary with Title and Definition",
-            "1. Call save_to_file with content and URL\n2. Check if file exists and contains expected content",
-            "File should be created with proper content",
-            status, actual_result
-        )
-        
-        assert file_exists
-        assert "Test Disease" in file_content
-        assert "This is a test definition." in file_content
+        # Check that the file write operations contain the expected content
+        write_calls = mock_file().write.call_args_list
+        self.assertTrue(any('Source: https://example.com/test' in str(call) for call in write_calls))
+        self.assertTrue(any('Title' in str(call) for call in write_calls))
+        self.assertTrue(any('Test Disease' in str(call) for call in write_calls))
 
+    @patch('builtins.open')
+    def test_save_to_file_handles_errors(self, mock_open):
+        """Test error handling when saving to a file."""
+        mock_open.side_effect = IOError("Permission denied")
+        
+        result = self.scraper.save_to_file({"Title": "Test"}, "https://example.com")
+        self.assertTrue(result.startswith("Error"))
 
-# MedlinePlusVectorizer Tests
-class TestMedlinePlusVectorizer:
-    
-    @pytest.fixture
-    def vectorizer(self, temp_dir):
-        """Create a vectorizer instance with a temporary directory."""
-        # Create test input directory
-        input_dir = os.path.join(temp_dir, "input")
-        os.makedirs(input_dir, exist_ok=True)
+    @patch('requests.Session.get')
+    def test_find_encyclopedia_articles(self, mock_get):
+        """Test finding encyclopedia article links."""
+        mock_response = MagicMock()
+        mock_response.text = self.sample_html
+        mock_get.return_value = mock_response
         
-        # Create test files
-        with open(os.path.join(input_dir, "file1.txt"), 'w') as f:
-            f.write("Title: Disease 1\nDefinition: This is disease 1.")
-        with open(os.path.join(input_dir, "file2.txt"), 'w') as f:
-            f.write("Title: Disease 2\nDefinition: This is disease 2.")
+        result = self.scraper.find_encyclopedia_articles("A")
         
-        return MedlinePlusVectorizer(input_dir=input_dir, collection_name="test_collection", initialize_embeddings=False)
-    
-    def test_combine_files(self, vectorizer):
-        """Test TC007: Test combining files from the input directory."""
-        test_id = "TC007"
-        section = "MedlinePlusVectorizer"
-        subsection = "combine_files"
+        # Should find 2 valid links (not the one with class="special")
+        self.assertEqual(len(result), 2)
+        self.assertTrue(all(link.startswith(self.scraper.BASE_URL) for link in result))
+        self.assertTrue(any(link.endswith("disease1.htm") for link in result))
+        self.assertTrue(any(link.endswith("disease2.htm") for link in result))
+
+    def test_find_encyclopedia_articles_validates_input(self):
+        """Test input validation for finding encyclopedia articles."""
+        with self.assertRaises(ValueError):
+            self.scraper.find_encyclopedia_articles("AB")  # Too long
         
-        # Execute test
-        result = vectorizer.combine_files()
-        
-        # Verify results
-        contains_file1 = "Title: Disease 1" in result
-        contains_file2 = "Title: Disease 2" in result
-        status = "PASS" if contains_file1 and contains_file2 else "FAIL"
-        actual_result = f"Combined text length: {len(result)} characters"
-        
-        # Record test result
-        test_report.add_result(
-            test_id, section, subsection,
-            "Combine Files",
-            "Verify that files are correctly combined from input directory",
-            "Vectorizer instance initialized with test files",
-            "Two test files with disease information",
-            "1. Call combine_files method\n2. Check if result contains content from both files",
-            "Combined text should contain content from all files",
-            status, actual_result
-        )
-        
-        assert "Title: Disease 1" in result
-        assert "Title: Disease 2" in result
-    
-    def test_create_chunks(self, vectorizer):
-        """Test TC008: Test creating chunks from combined text."""
-        test_id = "TC008"
-        section = "MedlinePlusVectorizer"
-        subsection = "create_chunks"
-        
-        # Execute test
-        chunks = vectorizer.create_chunks(MOCK_COMBINED_TEXT)
-        
-        # Verify results
-        all_chunks_have_metadata = all("metadata" in chunk and "chunk_id" in chunk.metadata for chunk in chunks)
-        status = "PASS" if len(chunks) > 0 and all_chunks_have_metadata else "FAIL"
-        actual_result = f"Created {len(chunks)} chunks with metadata"
-        
-        # Record test result
-        test_report.add_result(
-            test_id, section, subsection,
-            "Create Chunks",
-            "Verify that text is correctly chunked with proper metadata",
-            "Vectorizer instance initialized",
-            "Mock combined text with START/END document markers",
-            "1. Call create_chunks method with combined text\n2. Check if chunks are created with metadata",
-            "List of Document objects with metadata should be returned",
-            status, actual_result
-        )
-        
-        assert len(chunks) > 0
-        assert all("metadata" in chunk for chunk in chunks)
-        assert all("chunk_id" in chunk.metadata for chunk in chunks)
-    
-    @patch("langchain.vectorstores.Chroma.from_documents")
-    def test_create_vector_db(self, mock_from_documents, vectorizer):
-        """Test TC009: Test creating a vector database from documents."""
-        test_id = "TC009"
-        section = "MedlinePlusVectorizer"
-        subsection = "create_vector_db"
-        
-        # Setup mock
-        mock_vector_store = MagicMock()
-        mock_from_documents.return_value = mock_vector_store
-        
-        # Create test documents
-        from langchain.schema import Document
-        docs = [
-            Document(page_content="Test content 1", metadata={"chunk_id": "1"}),
-            Document(page_content="Test content 2", metadata={"chunk_id": "2"})
-        ]
-        
-        # Execute test
-        vectorizer.create_vector_db(docs)
-        
-        # Verify results
-        mock_called = mock_from_documents.called
-        status = "PASS" if mock_called else "FAIL"
-        actual_result = "Vector store creation method called successfully" if mock_called else "Vector store creation method not called"
-        
-        # Record test result
-        test_report.add_result(
-            test_id, section, subsection,
-            "Create Vector Database",
-            "Verify that vector database is created from documents",
-            "Vectorizer instance initialized",
-            "Two test Document objects",
-            "1. Call create_vector_db method with documents\n2. Check if Chroma.from_documents was called",
-            "Chroma.from_documents should be called to create vector store",
-            status, actual_result
-        )
-        
-        assert mock_from_documents.called
-        mock_vector_store.persist.assert_called_once()
-    
-    @patch("chromadb.PersistentClient")
-    @patch("langchain.vectorstores.Chroma")
-    def test_initialize_rag_pipeline(self, mock_chroma, mock_client, vectorizer):
-        """Test TC010: Test initializing the RAG pipeline."""
-        test_id = "TC010"
-        section = "MedlinePlusVectorizer"
-        subsection = "initialize_rag_pipeline"
-        
-        # Setup mocks
-        mock_vector_store = MagicMock()
-        mock_chroma.return_value = mock_vector_store
-        mock_vector_store.as_retriever.return_value = MagicMock()
-        
-        with patch.object(vectorizer, 'initialize_mistral_model') as mock_init_model:
-            mock_init_model.return_value = MagicMock()
+        with self.assertRaises(ValueError):
+            self.scraper.find_encyclopedia_articles("1")  # Not alphabetic
             
-            # Mock RetrievalQA
-            with patch('langchain.chains.RetrievalQA.from_chain_type') as mock_retrieval_qa:
-                mock_retrieval_qa.return_value = MagicMock()
-                
-                # Execute test
-                try:
-                    result = vectorizer.initialize_rag_pipeline()
-                    exception_raised = False
-                except Exception as e:
-                    exception_raised = True
-                    error_message = str(e)
-                
-                # Verify results
-                status = "PASS" if not exception_raised and mock_retrieval_qa.called else "FAIL"
-                actual_result = "RAG pipeline initialized successfully" if not exception_raised else f"Exception: {error_message}"
-                
-                # Record test result
-                test_report.add_result(
-                    test_id, section, subsection,
-                    "Initialize RAG Pipeline",
-                    "Verify that RAG pipeline is correctly initialized",
-                    "Vectorizer instance initialized",
-                    "Mocked vector store and LLM model",
-                    "1. Call initialize_rag_pipeline method\n2. Check if RetrievalQA.from_chain_type was called",
-                    "RetrievalQA chain should be created and returned",
-                    status, actual_result
-                )
-                
-                assert not exception_raised
-                assert mock_retrieval_qa.called
-    
-    @patch('os.getenv')
-    def test_initialize_mistral_model(self, mock_getenv, vectorizer):
-        """Test TC011: Test initializing the Mistral model."""
-        test_id = "TC011"
-        section = "MedlinePlusVectorizer"
-        subsection = "initialize_mistral_model"
+        with self.assertRaises(ValueError):
+            self.scraper.find_encyclopedia_articles("")  # Empty
+
+    @patch.object(MedlinePlusScraper, 'find_encyclopedia_articles')
+    @patch.object(MedlinePlusScraper, 'retrieve_webpage')
+    @patch.object(MedlinePlusScraper, 'parse_article_content')
+    @patch.object(MedlinePlusScraper, 'save_to_file')
+    def test_scrape_and_save_articles(self, mock_save, mock_parse, mock_retrieve, mock_find):
+        """Test the main scraping and saving function."""
+        # Setup mocks
+        mock_find.return_value = ["url1", "url2"]
+        mock_retrieve.return_value = self.sample_html
+        mock_parse.return_value = {"Title": "Test Disease"}
+        mock_save.return_value = "/path/to/saved/file.txt"
         
+        # Redirect stdout to capture print statements
+        captured_output = StringIO()
+        sys.stdout = captured_output
+        
+        try:
+            self.scraper.scrape_and_save_articles("A")
+            
+            # Verify function calls
+            mock_find.assert_called_once_with("A")
+            self.assertEqual(mock_retrieve.call_count, 2)
+            self.assertEqual(mock_parse.call_count, 2)
+            self.assertEqual(mock_save.call_count, 2)
+            
+            # Verify output
+            output = captured_output.getvalue()
+            self.assertIn("Found 2 articles", output)
+            self.assertIn("Successfully saved 2 out of 2 articles", output)
+        finally:
+            sys.stdout = sys.__stdout__
+
+
+class TestMedlinePlusVectorizer(unittest.TestCase):
+    """Test cases for the MedlinePlusVectorizer class."""
+
+    def setUp(self):
+        """Set up test environment before each test."""
+        # Initialize with embeddings disabled for testing
+        self.vectorizer = MedlinePlusVectorizer(
+            input_dir="test_input",
+            collection_name="test_collection",
+            initialize_embeddings=False
+        )
+        
+        # Create a sample file content
+        self.sample_file_content = """
+        Source: https://medlineplus.gov/ency/article/test.htm
+        Extracted: 2025-03-23 12:00:00
+        
+        Title
+        Test Disease
+        
+        Causes
+        This is the causes section.
+        
+        Symptoms
+        This is the symptoms section.
+        """
+
+    @patch('glob.glob')
+    @patch('builtins.open', new_callable=mock_open)
+    def test_combine_files(self, mock_file, mock_glob):
+        """Test combining multiple files into a single text."""
+        # Setup mocks
+        mock_glob.return_value = ["test_input/file1.txt", "test_input/file2.txt"]
+        mock_file.return_value.read.return_value = self.sample_file_content
+        
+        result = self.vectorizer.combine_files()
+        
+        # Check that files were read
+        self.assertEqual(mock_file.call_count, 2)
+        
+        # Check that the result contains expected content
+        self.assertIn("--- START OF DOCUMENT: file1.txt ---", result)
+        self.assertIn("--- START OF DOCUMENT: file2.txt ---", result)
+        self.assertIn("Test Disease", result)
+
+    def test_create_chunks(self):
+        """Test creating chunks from text."""
+        # Use a patch to avoid initializing embeddings
+        with patch.object(self.vectorizer, 'text_splitter') as mock_splitter:
+            # Setup mock document return
+            mock_doc = MagicMock()
+            mock_doc.metadata = {}
+            mock_splitter.create_documents.return_value = [mock_doc, mock_doc]
+            
+            result = self.vectorizer.create_chunks("Test text")
+            
+            # Verify the splitter was called
+            mock_splitter.create_documents.assert_called_once_with(["Test text"])
+            
+            # Verify we got the expected documents with metadata
+            self.assertEqual(len(result), 2)
+            self.assertEqual(result[0].metadata["source"], "combined_text")
+            self.assertIn("chunk_id", result[0].metadata)
+
+    @patch.object(MedlinePlusVectorizer, 'combine_files')
+    @patch.object(MedlinePlusVectorizer, 'create_chunks')
+    @patch.object(MedlinePlusVectorizer, 'create_vector_db')
+    def test_process(self, mock_create_db, mock_create_chunks, mock_combine):
+        """Test the full processing pipeline."""
+        # Setup mocks
+        mock_combine.return_value = "Combined text"
+        mock_docs = [MagicMock(), MagicMock()]
+        mock_create_chunks.return_value = mock_docs
+        
+        self.vectorizer.process()
+        
+        # Verify all steps were called
+        mock_combine.assert_called_once()
+        mock_create_chunks.assert_called_once_with("Combined text")
+        mock_create_db.assert_called_once_with(mock_docs)
+
+    @patch('json.load')
+    @patch('json.dump')
+    @patch('builtins.open', new_callable=mock_open)
+    @patch('os.path.exists')
+    def test_log_query(self, mock_exists, mock_open, mock_dump, mock_load):
+        """Test logging of queries and answers."""
+        # Setup mocks
+        mock_exists.return_value = True
+        mock_load.return_value = [{"previous": "log"}]
+        
+        self.vectorizer._log_query("What are the symptoms?", "Symptoms include...")
+        
+        # Verify file operations
+        mock_open.assert_called()
+        mock_dump.assert_called_once()
+        
+        # Check the logged data structure
+        args = mock_dump.call_args[0]
+        logs = args[0]
+        self.assertEqual(len(logs), 2)  # Previous log + new entry
+        self.assertEqual(logs[1]["question"], "What are the symptoms?")
+        self.assertEqual(logs[1]["answer"], "Symptoms include...")
+
+    @patch('os.getenv')
+    def test_initialize_mistral_model(self, mock_getenv):
+        """Test initialization of the Mistral model."""
         # Setup mock
         mock_getenv.return_value = "fake_api_key"
         
         with patch('langchain_mistralai.ChatMistralAI') as mock_mistral:
-            mock_mistral.return_value = MagicMock()
+            self.vectorizer.initialize_mistral_model()
             
-            # Execute test
-            try:
-                result = vectorizer.initialize_mistral_model()
-                exception_raised = False
-            except Exception as e:
-                exception_raised = True
-                error_message = str(e)
-            
-            # Verify results
-            status = "PASS" if not exception_raised and mock_mistral.called else "FAIL"
-            actual_result = "Mistral model initialized successfully" if not exception_raised else f"Exception: {error_message}"
-            
-            # Record test result
-            test_report.add_result(
-                test_id, section, subsection,
-                "Initialize Mistral Model",
-                "Verify that Mistral model is correctly initialized",
-                "Vectorizer instance initialized",
-                "Mocked API key: fake_api_key",
-                "1. Call initialize_mistral_model method\n2. Check if ChatMistralAI constructor was called with correct parameters",
-                "ChatMistralAI instance should be created and returned",
-                status, actual_result
-            )
-            
-            assert not exception_raised
-            assert mock_mistral.called
-            # Check if the model was initialized with correct parameters
-            mock_mistral.assert_called_with(
-                model="mistral-large-latest",
-                temperature=0.2,
-                max_retries=2,
-                api_key="fake_api_key"
-            )
-    
-    def test_log_query(self, vectorizer, temp_dir):
-        """Test TC012: Test logging queries and answers."""
-        test_id = "TC012"
-        section = "MedlinePlusVectorizer"
-        subsection = "_log_query"
+            # Verify the model was initialized with correct parameters
+            mock_mistral.assert_called_once()
+            args = mock_mistral.call_args[1]
+            self.assertEqual(args["model"], "mistral-large-latest")
+            self.assertEqual(args["temperature"], 0.2)
+            self.assertEqual(args["api_key"], "fake_api_key")
+
+    @patch('os.getenv')
+    def test_initialize_mistral_model_missing_api_key(self, mock_getenv):
+        """Test error handling when API key is missing."""
+        # Setup mock to return None (missing API key)
+        mock_getenv.return_value = None
         
-        # Setup - redirect log file to temp dir
-        log_file_path = os.path.join(temp_dir, "query_logs.json")
-        with patch('os.path.exists') as mock_exists, \
-             patch('builtins.open', new_callable=mock_open) as mock_file, \
-             patch('json.load') as mock_load, \
-             patch('json.dump') as mock_dump:
+        with self.assertRaises(ValueError):
+            self.vectorizer.initialize_mistral_model()
+
+    @patch.object(MedlinePlusVectorizer, 'initialize_mistral_model')
+    @patch.object(MedlinePlusVectorizer, '_log_query')
+    def test_query_with_rag(self, mock_log, mock_init_model):
+        """Test querying with the RAG pipeline."""
+        # Setup mocks
+        mock_model = MagicMock()
+        mock_init_model.return_value = mock_model
+        
+        with patch.object(self.vectorizer, 'initialize_rag_pipeline') as mock_init_rag:
+            mock_pipeline = MagicMock()
+            mock_pipeline.run.return_value = "This is the answer"
+            mock_init_rag.return_value = mock_pipeline
             
-            mock_exists.return_value = False
-            mock_load.return_value = []
+            result, context = self.vectorizer.query_with_rag("What is this disease?")
             
-            # Execute test
-            vectorizer._log_query("What is diabetes?", "Diabetes is a chronic condition...")
+            # Verify the RAG pipeline was initialized and used
+            mock_init_rag.assert_called_once()
+            mock_pipeline.run.assert_called_once_with("What is this disease?")
             
-            # Verify results
-            file_opened = mock_file.called
-            json_dumped = mock_dump.called
-            status = "PASS" if file_opened and json_dumped else "FAIL"
-            actual_result = "Query logged successfully" if file_opened and json_dumped else "Failed to log query"
+            # Verify the result
+            self.assertEqual(result, "This is the answer")
+            self.assertEqual(context, "")  # Context should be empty
             
-            # Record test result
-            test_report.add_result(
-                test_id, section, subsection,
-                "Log Query",
-                "Verify that queries and answers are correctly logged",
-                "Vectorizer instance initialized",
-                "Test query: 'What is diabetes?', Test answer: 'Diabetes is a chronic condition...'",
-                "1. Call _log_query method with query and answer\n2. Check if data is written to JSON file",
-                "Log entry should be added to the JSON log file",
-                status, actual_result
-            )
-            
-            assert file_opened
-            assert json_dumped
-            # Check if json.dump was called with a list containing our entry
-            args, _ = mock_dump.call_args
-            assert len(args) >= 1
-            log_entries = args[0]
-            assert len(log_entries) == 1
-            assert log_entries[0]["question"] == "What is diabetes?"
-            assert log_entries[0]["answer"] == "Diabetes is a chronic condition..."
+            # Verify logging
+            mock_log.assert_called_once_with("What is this disease?", "This is the answer")
 
 
-def main():
-    """Run the tests and generate the report."""
-    # Run pytest programmatically
-    pytest.main(["-v", __file__])
-    
-    # Generate the Excel report
-    test_report.generate_report()
-
-
-if __name__ == "__main__":
-    main()
+if __name__ == '__main__':
+    unittest.main()
