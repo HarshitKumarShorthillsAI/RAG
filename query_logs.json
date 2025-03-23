@@ -26003,5 +26003,30 @@
         "timestamp": "2025-03-22T21:10:00.897861",
         "question": "qwerty",
         "answer": "I'm unsure how to respond to that. Could you please rephrase or ask a different question?"
+    },
+    {
+        "timestamp": "2025-03-23T21:46:36.861786",
+        "question": "What are the treatment for Spinal and epidural anesthesia?",
+        "answer": "I'm unsure about the treatments for spinal and epidural anesthesia as the provided context does not discuss treatments for these types of anesthesia."
+    },
+    {
+        "timestamp": "2025-03-23T21:46:52.811336",
+        "question": "What are the treatment for Spinal and epidural anesthesia?",
+        "answer": "I'm unsure about the treatments specifically for spinal and epidural anesthesia as the provided context does not detail treatments for these procedures. The context mainly discusses why these procedures are performed, how they are administered, and their risks. If you have specific concerns or questions about treatments related to spinal and epidural anesthesia, it would be best to consult a healthcare provider."
+    },
+    {
+        "timestamp": "2025-03-23T21:47:14.237480",
+        "question": "What are the symptoms of Keratosis pilaris?",
+        "answer": "The symptoms of Keratosis pilaris may include:\n\n- Small bumps that look like \"goose bumps\" on the back of the upper arms and thighs.\n- Bumps that feel like very rough sandpaper.\n- Skin-colored bumps that are the size of a grain of sand.\n- Slight pinkness may be seen around some bumps.\n- Bumps may appear on the face and be mistaken for acne."
+    },
+    {
+        "timestamp": "2025-03-23T21:47:57.146057",
+        "question": "What are the prevention for Scleritis?",
+        "answer": "Most cases of scleritis cannot be prevented. However, people with autoimmune diseases may need to have regular check-ups with an ophthalmologist who is familiar with the condition. Additionally, for high-risk individuals, taking antibiotics before diagnostic or surgical procedures may help reduce the risk, but this should be discussed with a healthcare provider."
+    },
+    {
+        "timestamp": "2025-03-23T21:48:38.833548",
+        "question": "What are the treatment for Sporotrichosis?",
+        "answer": "The treatments for Sporotrichosis include:\n\n1. **Itraconazole**: An antifungal medicine taken by mouth. It is usually continued for 2 to 4 weeks after skin sores have cleared, and you may have to take it for 3 to 6 months.\n2. **Terbinafine**: Another antifungal medicine that can be used instead of itraconazole.\n3. **Amphotericin B**: Used for infections that have spread or affect the entire body. Therapy for systemic disease can last up to 12 months."
     }
 ]
