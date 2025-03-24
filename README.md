@@ -123,6 +123,7 @@ File Structure
 **Clone the Repository**:
    ```bash
    git clone https://github.com/HarshitKumarShorthillsAI/RAG.git
+   cd RAG
    ```
 
 **Virtual Enviroment Setup**:
