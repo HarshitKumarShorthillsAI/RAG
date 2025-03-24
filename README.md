@@ -68,7 +68,7 @@ The project involves the following key steps:
 
 ### Step 4: Storing Processed Data in Excel
 - Stored the structured Q&A dataset in a Excel file.
-- CSV Columns:
+- Excel Columns:
   - **Question**: AI-generated medical question based on Medline text.
   - **Answer**: Mistral AI-generated response for the given question.
   - **Context**: Relevant passage from Medline used to generate the Q&A pair.
@@ -115,6 +115,7 @@ File Structure
 ├── evaluation_results_groundtruth.xlsx     # Excel Evaluation Sheet
 ├── test_results_unit_testing.xlsx        # Excel Sheet for Unit testing
 ├── query_logs.xlsx        # Query logs
+├── cleaned_file_with_context_excel.xlsx        # Cleaned file of Question with answer and context
  ```
 
 ## How to Use
