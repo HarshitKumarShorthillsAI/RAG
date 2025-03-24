@@ -57,9 +57,9 @@ class TestMedlinePlusScraper(unittest.TestCase):
         mock_response.text = self.sample_html
         mock_get.return_value = mock_response
         
-        result = self.scraper.retrieve_webpage("https://example.com")
+        result = self.scraper.retrieve_webpage("https://medlineplus.gov/encyclopedia.html")
         self.assertEqual(result, self.sample_html)
-        mock_get.assert_called_once_with("https://example.com", timeout=30)
+        mock_get.assert_called_once_with("https://medlineplus.gov/encyclopedia.html", timeout=30)
 
     @patch('requests.Session.get')
     def test_retrieve_webpage_failure(self, mock_get):
@@ -157,7 +157,7 @@ class TestMedlinePlusScraper(unittest.TestCase):
     def test_scrape_and_save_articles(self, mock_save, mock_parse, mock_retrieve, mock_find):
         """Test the main scraping and saving function."""
         # Setup mocks
-        mock_find.return_value = ["url1", "url2"]
+        mock_find.return_value = ["https://medlineplus.gov/encyclopedia.html", "https://medlineplus.gov/ency/encyclopedia_Z.htm"]
         mock_retrieve.return_value = self.sample_html
         mock_parse.return_value = {"Title": "Test Disease"}
         mock_save.return_value = "/path/to/saved/file.txt"

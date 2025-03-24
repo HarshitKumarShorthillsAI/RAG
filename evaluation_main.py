@@ -24,9 +24,9 @@ MISTRAL_MODEL = "mistral-tiny"
 
 # Metric weights for final score calculation
 METRIC_WEIGHTS = {
-    "rouge_score": 0.25,
-    "cosine_similarity": 0.25,
-    "bert_score_f1": 0.5  # Using F1 as the main BERT Score metric
+    "rouge_score": 0.10,
+    "cosine_similarity": 0.30,
+    "bert_score_f1": 0.6  # Using F1 as the main BERT Score metric
 }
 
 if MISTRAL_MODEL not in VALID_MODELS:

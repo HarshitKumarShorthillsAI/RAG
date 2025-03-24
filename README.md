@@ -10,7 +10,7 @@ The project involves the following key steps:
 1. **Web Scraping**: Extracting structured medical content from 3,000 Medline webpages.
 2. **Vector Embedding Generation**: Converting the extracted text into semantic vector representations using the MiniLM-L6-v2 model and storing them in ChromaDB.
 3. **Q&A Generation**: Using Mistral AI to generate 2,000 medical questions and their corresponding answers based on the extracted content.
-4. **Data Storage**: Storing the generated Q&A pairs along with their context in a CSV file for further use.
+4. **Data Storage**: Storing the generated Q&A pairs along with their context in a EXcel file for further use.
 5. **Streamlit UI Integration**: Building an interactive user interface (UI) using Streamlit to test and visualize the pipeline.
 
 ---
@@ -43,16 +43,15 @@ The project involves the following key steps:
 
 - **Evaluation Metrics:**
   - `rouge_score`: For calculating ROUGE scores.
-  - `evaluate`: For exact match evaluation.
   - `bert_score`: For BERT-based precision, recall, and F1 scores.
-  - `sklearn.metrics`: For precision and accuracy scores.
+
 
 ---
 
 ## Workflow Steps
 
 ### Step 1: Web Scraping Medline Data
-- Implemented `MedlinePlusScraper` to crawl and extract 3,000 webpages from the Medline website.
+- Implemented `MedlinePlusScraper` to crawl and extract 2100 webpages from the Medline website.
 - Extracted structured text content, including titles, main content, and metadata.
 - Used `BeautifulSoup` for parsing and cleaning the scraped HTML.
 
@@ -62,13 +61,13 @@ The project involves the following key steps:
 - Stored embeddings in ChromaDB for fast retrieval based on semantic similarity.
 
 ### Step 3: AI-Powered Question-Answer Generation
-- Integrated Mistral AI (`ChatMistralAI`) to generate 2,000 medical questions based on extracted content.
+- Integrated Mistral AI (`ChatMistralAI`) to generate 1800 medical questions based on extracted content.
 - Generated accurate and contextually relevant answers for each question.
 - Ensured alignment of questions with relevant context from the Medline articles.
 - Performed data validation to avoid redundant or low-quality Q&A pairs.
 
-### Step 4: Storing Processed Data in CSV
-- Stored the structured Q&A dataset in a CSV file.
+### Step 4: Storing Processed Data in Excel
+- Stored the structured Q&A dataset in a Excel file.
 - CSV Columns:
   - **Question**: AI-generated medical question based on Medline text.
   - **Answer**: Mistral AI-generated response for the given question.
@@ -81,8 +80,8 @@ The project involves the following key steps:
 - Stored and Saved the timestamp, Question and Answer in json form in query_logs.json 
 
 ### Step 6: Evaluation of LLM
-- Evaluate the performance of the LLM using metrics such as Exact Match, Cosine Similarity, ROUGE Score, BERT Similarity, BERTScore, BERTRecall ,BERT Precison , Precision Score, and a weighted Final Score.
-- Log the results in a CSV file for further analysis.
+- Evaluate the performance of the LLM using metrics such as =ROUGE Score, Cosine Similarity,  BERTRecall ,BERT Precison  BERTScoreF1 and a weighted Final Score.
+- Log the results in a Log file for further analysis.
 
 
 ---
@@ -94,20 +93,28 @@ The project involves the following key steps:
 ![alt text](<ScreenShot/Screenshot from 2025-03-17 17-04-38.png>)
 
 - UI for searching the question <br>
-![alt text](<ScreenShot/Screenshot from 2025-03-17 16-56-33.png>)
+![alt text](<ScreenShot/image copy 2.png>)
 
 - Evaluation ScreenShot <br>
 
-![alt text](ScreenShot/image.png)
+![alt text](<ScreenShot/image copy.png>)
 ```
 File Structure
 ├── main.py              # Core program interface
 ├── WebScraper.py           # Web scraping functionality
 ├── Vectorizer.py          # Text processing and embedding generation
-├── script.py             # Query processing and response generation
-├── cleaned.py             # Clean the File helper function
-├── Evaluation.py        # Handles metric calculations and scoring
+├── script_main.py             # Query processing and response generation
+├── evaluation_main.py        # Handles metric calculations and scoring
 ├── requirements.txt     # Dependencies list
+├── testing_main.py             # testing of Webscraper.py and Vectorizer.py
+├── testing_evaluation_main.py             # Unit testing of evaluation_main.py
+├── questions_with_answers_and_context.xlsx     # Dependencies list
+├── manualtesting.py             # Manual testing python file
+├── qa_evaluation_test_cases.xlsx           # Excel Sheet for Evaulation_main Unit testing
+├── MedlinePlus_Manual_Test_Cases.xlsx      # Excel Sheet for Manual testing
+├── evaluation_results_groundtruth.xlsx     # Excel Evaluation Sheet
+├── test_results_unit_testing.xlsx        # Excel Sheet for Unit testing
+├── query_logs.xlsx        # Query logs
  ```
 
 ## How to Use
