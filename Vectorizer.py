@@ -214,21 +214,20 @@ class MedlinePlusVectorizer:
             return f"Error: {e}", ""
     
     def initialize_mistral_model(self):
-        """Initializes the Mistral model using LangChain."""
-        print("Calling os.getenv...")  # Debug statement
-        mistral_api_key = os.getenv("MISTRAL_API_KEY")
-        if not mistral_api_key:
-            raise ValueError("Mistral API key is required. Please set the MISTRAL_API_KEY environment variable.")
+        api_key = os.getenv('MISTRAL_API_KEY')
+        if not api_key:
+            raise ValueError("Mistral API key is missing. Set MISTRAL_API_KEY environment variable.")
         
-        # Initialize the Mistral model with the API key
-        llm = ChatMistralAI(
+        from langchain_mistralai import ChatMistralAI
+        
+        self.llm = ChatMistralAI(
             model="mistral-large-latest",
-            temperature=0.2,  # Lower temperature for more factual responses
-            max_retries=2,     # Retry on API failures
-            api_key=mistral_api_key  # Pass the API key directly
+            temperature=0.2,
+            api_key=api_key
         )
-        return llm
         
+        return self.llm
+            
     def _log_query(self, query: str, answer: str) -> None:
         """Logs the query and answer into a JSON file."""
         log_entry = {

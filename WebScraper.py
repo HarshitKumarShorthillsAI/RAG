@@ -61,39 +61,30 @@ class MedlinePlusScraper:
             print(f"Error retrieving {url}: {e}")
             return None
     
-    def parse_article_content(self, html: str) -> Dict[str, str]:
-        """
-        Extract article content from HTML.
-        
-        Args:
-            html: HTML content to parse
-            
-        Returns:
-            Dictionary with article sections and their content
-        """
+    def parse_article_content(self, html):
         try:
-            soup = BeautifulSoup(html, "html.parser")
+            soup = BeautifulSoup(html, 'html.parser')
+            title = soup.find('h1', class_='with-also', itemprop='name')
             
-            # Extracting article title
-            title_tag = soup.find("h1", class_="with-also", itemprop="name")
-            article_title = title_tag.get_text(strip=True) if title_tag else "Title not found"
+            if not title:
+                return {"Error": "Unable to parse article title"}
             
-            extracted_text = {"Title": article_title}
+            title_text = title.get_text(strip=True)
             
-            # Extract all sections dynamically
-            for section in soup.find_all("div", class_="section"):
-                title_div = section.find("div", class_="section-title")
-                body_div = section.find("div", class_="section-body")
+            sections = {}
+            for section in soup.find_all('div', class_='section'):
+                section_title = section.find('div', class_='section-title')
+                section_body = section.find('div', class_='section-body')
                 
-                if title_div and body_div:
-                    section_title = title_div.get_text(strip=True)
-                    section_content = body_div.get_text(" ", strip=True)
-                    extracted_text[section_title] = section_content
+                if section_title and section_body:
+                    sections[section_title.get_text(strip=True)] = section_body.get_text(strip=True)
             
-            return extracted_text
+            result = {"Title": title_text}
+            result.update(sections)
+            return result
+        
         except Exception as e:
-            print(f"Error parsing article content: {e}")
-            return {"Error": f"Failed to parse content: {str(e)}"}
+            return {"Error": f"Error parsing article: {str(e)}"}
     
     def create_safe_filename(self, title: str) -> str:
         """
